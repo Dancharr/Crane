@@ -1,0 +1,86 @@
+#include <Servo.h>
+#include <EEPROM.h>
+
+Servo myservo; // create servo object to control a servo
+Servo myservo2;// create second servo object to control second servo
+
+int potpin = 0;  // analog pin used to connect the potentiometer
+int potpin2 = 1;
+float val; // variable to read the value from the analog pin
+float val2;
+float pos = EEPROM.read(0); //reads last position of the crane
+float pos2 = EEPROM.read(1);
+float turnrate = 0.5; //speed of the crane
+float buttonpos;
+bool buttonused = false;
+bool buttonState = false;
+bool lastButtonState = false;
+int buttonpin = 2;
+
+void setup() {
+  myservo.write(pos); //sets position to its last position
+  myservo2.write(pos2);
+  myservo.attach(9); //attaches servos
+  myservo2.attach(10);
+  pinMode(buttonpin, INPUT_PULLUP);
+}
+
+void button(){
+  buttonState = !digitalRead(2); // reads state of button
+
+  // compare the buttonState to its previous state
+  if (buttonState != lastButtonState) {
+    // if the state has changed, increment the counter
+    if (buttonState == HIGH) {
+      if (buttonused){
+        while(myservo.read() != buttonpos){
+          if(myservo.read() < buttonpos) pos += 0.5;
+          if(myservo.read() > buttonpos) pos -= 0.5;
+
+          myservo.write(pos);
+    
+          delay(15);
+  }
+      }else{
+        buttonpos = myservo.read();
+      }
+      buttonused=!buttonused;
+
+      // if the current state is HIGH then the button went from off to on:
+    } 
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
+  lastButtonState = buttonState;
+} 
+
+void loop() {
+  val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+  val = map(val, 0, 1023, 0, 180);     // scale it to use it with the servo (value between 0 and 180)
+  if(val >= 0 && val <=60 && pos >=0){ // turns horizontal servo left when joystick is pushed left
+    pos -= turnrate; 
+    myservo.write(pos);
+    delay(15);
+  }
+  if(val >= 120 && val <=180 && pos <=180){ //turns the horizontal servo right when joystick is pushed right
+    pos += turnrate; 
+    myservo.write(pos);
+    delay(15);
+  }
+  
+  val2 = analogRead(potpin2);            // reads the value of the potentiometer (value between 0 and 1023)
+  val2 = map(val2, 0, 1023, 0, 180);     // scale it to use it with the servo (value between 0 and 180)
+  if(val2 >= 0 && val2 <=60 && pos2 >= 25){ // turns vertical servo down when joystick is pushed down
+    pos2 -= turnrate; 
+    myservo2.write(pos2);
+    delay(15);
+  }
+  if(val2 >= 120 && val2 <=180 && pos2 <= 115){ // turns vertical servo up when joystick is pushed up
+    pos2 += turnrate; 
+    myservo2.write(pos2);
+    delay(15);
+  }
+  button();
+  EEPROM.write(0, pos); //remembers position of crane before it is turned off
+  EEPROM.write(1, pos2);
+}
